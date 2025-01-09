@@ -1,135 +1,113 @@
-import streamlit as st
+import dash
+from dash import dcc, html
 import pandas as pd
 import plotly.express as px
-import seaborn as sns
-import matplotlib.pyplot as plt
 
-# Load Data
+# Load and preprocess data
 data_path = 'C:\\Users\\dhairya\\OneDrive\\Documents\\8th Sem Internships\\QTechSolutions\\Task 3\\imdb_top_1000.csv'  # Replace with your CSV file path
 data = pd.read_csv(data_path)
 
-# Data Cleaning
+# Remove null values using dropna
+data.dropna(inplace=True)
+
+# Preprocess data
 data['Released_Year'] = pd.to_numeric(data['Released_Year'], errors='coerce')
 data['Gross'] = data['Gross'].str.replace(',', '').str.extract('(\d+)').astype(float)
 data['Runtime'] = data['Runtime'].str.replace(' min', '').astype(float)
 
-# Streamlit Dashboard
-st.title("IMDb Top Movies Dashboard")
-st.image("https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg", width=200)
+# Bar Chart showing Top 10 Movies by Gross Earnings
+top_10_gross = data.nlargest(10, 'Gross')
+top_10_bar = px.bar(top_10_gross, x='Series_Title', y='Gross', title='Top 10 Movies by Gross Earnings',
+                    labels={'Series_Title': 'Movie Title', 'Gross': 'Gross Earnings'}, color='Gross', text='Gross')
+top_10_bar.update_layout(xaxis={'categoryorder': 'total descending'})
 
-# Sidebar Filters
-st.sidebar.markdown("""
-## Welcome!
-#### I welcome you all to the dashboard where the movies rated from IMDB are displayed according to thier Statistics.
-###### - Dhairya Kalathia""")
-st.sidebar.header("Filters")
-year_filter = st.sidebar.slider(
-    "Released Year", 
-    int(data['Released_Year'].min()), 
-    int(data['Released_Year'].max()),
-    (1990, 2020)
-)
+# Scatter Plot (IMDb Rating vs Gross Earnings with Movie Title)
+scatter_plot = px.scatter(data, x='Gross', y='IMDB_Rating', size='No_of_Votes', color='Series_Title',
+                           hover_data=['Series_Title'], title="IMDb Rating vs Gross Earnings (Movies)")
 
-genre_filter = st.sidebar.selectbox(
-    "Genre", 
-    options=["All"] + list(data['Genre'].unique()), 
-    index=0
-)
+# Pie Chart showing Gross Earnings Based on Certificates
+certificate_gross = data.groupby('Certificate')['Gross'].sum().reset_index()
+certificate_pie = px.pie(certificate_gross, names='Certificate', values='Gross', title="Gross Earnings Based on Certificates", hole=0.3)
 
-rating_filter = st.sidebar.slider(
-    "IMDb Rating", 
-    float(data['IMDB_Rating'].min()), 
-    float(data['IMDB_Rating'].max()),
-    (7.0, 9.5)
-)
+# Bar Chart showing Average IMDb Rating by Certificate
+avg_rating_by_certificate = data.groupby('Certificate')['IMDB_Rating'].mean().reset_index()
+certificate_bar = px.bar(avg_rating_by_certificate, x='Certificate', y='IMDB_Rating', title='Average IMDb Rating by Certificate',
+                         labels={'IMDB_Rating': 'Average IMDb Rating'}, color='Certificate', text='IMDB_Rating')
 
-votes_filter = st.sidebar.slider(
-    "Number of Votes", 
-    int(data['No_of_Votes'].min()), 
-    int(data['No_of_Votes'].max()),
-    (50000, 2000000)
-)
+# Bubble Chart showing Gross Earnings by Released Year and Runtime
+bubble_chart = px.scatter(data, x='Released_Year', y='Runtime', size='Gross', color='Released_Year',
+                          title='Gross Earnings by Released Year and Runtime',
+                          labels={'Released_Year': 'Released Year', 'Runtime': 'Runtime (min)', 'Gross': 'Gross Earnings'},
+                          hover_data=['Series_Title', 'IMDB_Rating'])
+bubble_chart.update_layout(showlegend=False)
 
-# Apply filters
-filtered_data = data[
-    (data['Released_Year'] >= year_filter[0]) & (data['Released_Year'] <= year_filter[1]) &
-    ((data['Genre'] == genre_filter) | (genre_filter == "All")) &
-    (data['IMDB_Rating'] >= rating_filter[0]) & (data['IMDB_Rating'] <= rating_filter[1]) &
-    (data['No_of_Votes'] >= votes_filter[0]) & (data['No_of_Votes'] <= votes_filter[1])
-]
+# Initialize Dash app
+app = dash.Dash(__name__)
+app.title = "IMDb Movies Hub"
 
-# Top Movies Table
-st.subheader("Top Movies")
-st.dataframe(filtered_data[['Series_Title', 'Released_Year', 'IMDB_Rating', 'Gross', 'Director', 'Genre']]
-             .sort_values(by='IMDB_Rating', ascending=False).head(10))
+# App layout
+app.layout = html.Div(id='main-container', children=[
+    html.Div([
+        html.Img(src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg", style={'width': '200px', 'vertical-align': 'middle'}),
+        html.H1("IMDb Movies Hub", style={'display': 'inline', 'margin-left': '20px', 'vertical-align': 'middle', 'color': 'black'})
+    ], style={'text-align': 'center'}),
+    
+    html.Div([
+        html.Div([
+            html.H3("Which Movie to be watched? ", style={'color': 'black', 'font-weight': 'bold'}),
+            html.P("Discover the top 10 highest-grossing movies based on the IMDb dataset, showcasing cinematic masterpieces that have captivated global audiences and shattered box office records. These films demonstrate how a combination of star power, epic storytelling, and outstanding production values can lead to massive financial success. From iconic classics to modern blockbusters, these top earners have proven that critical acclaim and widespread appeal drive unparalleled earnings. Explore how these cinematic giants achieved their impressive revenue and find out which movie reigns supreme at the top of the box office!",
+                   style={'color': 'black', 'text-align': 'justify', 'font-family': 'Times New Roman', 'margin-top': '20px'})
+        ], style={'width': '40%', 'padding': '20px'}),
+        html.Div([
+            dcc.Graph(id='top-10-bar-chart', figure=top_10_bar, style={'height': '400px', 'border': '2px solid black', 'border-radius': '10px'})
+        ], style={'width': '55%', 'padding': '20px'}),
+    ], style={'display': 'flex', 'justify-content': 'center', 'align-items': 'center'}),
+    
+    html.Div([
+        html.Div([
+            dcc.Graph(id='scatter-plot', figure=scatter_plot, style={'height': '450px', 'border': '2px solid black', 'border-radius': '10px'})
+        ], style={'width': '55%', 'padding': '20px'}),
+        html.Div([
+            html.H3("How IMDb Ratings Propel Box Office Success!", style={'color': 'black', 'font-weight': 'bold'}),
+            html.P("This graph delves into the fascinating relationship between IMDB ratings and the earnings of the highest-grossing films. It clearly illustrates how stellar ratings can drive a movie's box office success, showing the undeniable impact of audience approval. Not only does this reveal how good ratings correlate with high earnings, but it also serves as a guide to help moviegoers choose which films are truly worth watching. By examining this data, you’ll discover which top-rated blockbusters are not just popular, but deserving of your time and attention—ensuring you don’t miss out on cinematic gems that stand the test of both critics and fans alike.",
+                   style={'color': 'black', 'text-align': 'justify', 'font-family': 'Times New Roman', 'margin-top': '20px'})
+        ], style={'width': '40%', 'padding': '20px'}),
+    ], style={'display': 'flex', 'justify-content': 'center', 'align-items': 'center'}),
+    
+    html.Div([
+        html.Div([
+            html.H3("How Movie Ratings Shape Gross Earnings?", style={'color': 'black', 'font-weight': 'bold'}),
+            html.P("Unlock the secret behind the success of movies with our Gross Earnings Based on Certificates chart! Ever wondered how movie ratings like PG, PG-13, or R influence a film's earnings? This captivating visualization reveals the financial impact of movie certifications, showing you which ratings dominate the box office. From family-friendly hits to thrilling R-rated blockbusters, explore how certification categories shape audience appeal and drive record-breaking earnings. Let the numbers speak as we uncover the connection between film ratings and its financial triumphs on IMDb!",
+                   style={'color': 'black', 'text-align': 'justify', 'font-family': 'Times New Roman', 'margin-top': '20px'})
+        ], style={'width': '40%', 'padding': '20px'}),
+        html.Div([
+            dcc.Graph(id='certificate-pie-chart', figure=certificate_pie, style={'height': '400px', 'border': '2px solid black', 'border-radius': '10px'})
+        ], style={'width': '55%', 'padding': '20px'}),
+    ], style={'display': 'flex', 'justify-content': 'center', 'align-items': 'center'}),
+    
+    html.Div([
+        html.Div([
+            dcc.Graph(id='certificate-bar-chart', figure=certificate_bar, style={'height': '400px', 'border': '2px solid black', 'border-radius': '10px'})
+        ], style={'width': '55%', 'padding': '20px'}),
+        html.Div([
+            html.H3("Exploring IMDb Ratings Across Film Certifications", style={'color': 'black', 'font-weight': 'bold'}),
+            html.P("Discover how movie ratings influence audience reception with our Average IMDb Rating by Certificate chart! This insightful visualization reveals the relationship between a film's certification and its average IMDb rating. Are family-friendly films rated higher than intense thrillers? Does an R-rated movie have the same appeal as a PG-rated one? Dive into the data and see how movie certifications impact critical acclaim and audience ratings, providing a fascinating look into how certifications shape film reception and success on IMDb!",
+                   style={'color': 'black', 'text-align': 'justify', 'font-family': 'Times New Roman', 'margin-top': '20px'})
+        ], style={'width': '40%', 'padding': '20px'}),
+    ], style={'display': 'flex', 'justify-content': 'center', 'align-items': 'center'}),
+    
+    html.Div([
+        html.Div([
+            html.H3("The Impact of Runtime and Year on Gross Earnings", style={'color': 'black', 'font-weight': 'bold'}),
+            html.P("Unveil the evolution of cinema's financial success with our Gross Earnings by Released Year and Runtime bubble chart! This dynamic visualization showcases how movies of various runtimes have performed at the box office over the years. The chart plots the gross earnings of top films, highlighting trends and shifts in the industry. Are longer films earning more over time? Does a shorter runtime correlate with massive success? Explore how the movie industry's runtime and release year have influenced box office performance, offering a deeper look into the financial impact of movie length and era!",
+                   style={'color': 'black', 'text-align': 'justify', 'font-family': 'Times New Roman', 'margin-top': '20px'})
+        ], style={'width': '40%', 'padding': '20px'}),
+        html.Div([
+            dcc.Graph(id='bubble-chart', figure=bubble_chart, style={'height': '400px', 'border': '2px solid black', 'border-radius': '10px'})
+        ], style={'width': '55%', 'padding': '20px'}),
+    ], style={'display': 'flex', 'justify-content': 'center', 'align-items': 'center'}),
+], style={'background-color': 'white', 'color': 'black', 'font-family': 'Arial, sans-serif'})
 
-# Genre Popularity by Decade
-st.subheader("Genre Popularity by Decade")
-data['Decade'] = (data['Released_Year'] // 10) * 10
-genre_decade = data.groupby(['Decade', 'Genre']).size().reset_index(name='Count')
-fig_genre_decade = px.bar(genre_decade, x='Decade', y='Count', color='Genre', title="Genre Popularity by Decade")
-st.plotly_chart(fig_genre_decade)
-
-# Top Rated Movies by Genre
-st.subheader("Top Rated Movies by Genre")
-top_movies_by_genre = filtered_data.groupby('Genre').apply(lambda x: x.nlargest(1, 'IMDB_Rating')).reset_index(drop=True)
-st.dataframe(top_movies_by_genre[['Series_Title', 'Genre', 'IMDB_Rating']])
-
-# Line Chart: Trend of Movies Released Over the Years
-st.subheader("Trend of Movies Released Over the Years")
-movies_per_year = filtered_data['Released_Year'].value_counts().sort_index().reset_index()
-movies_per_year.columns = ['Year', 'Count']
-fig_line = px.line(movies_per_year, x='Year', y='Count', title="Movies Released Over the Years")
-st.plotly_chart(fig_line)
-
-# Movies with the Highest Votes
-st.subheader("Movies with the Highest Votes")
-highest_votes = filtered_data.nlargest(10, 'No_of_Votes')[['Series_Title', 'No_of_Votes', 'IMDB_Rating']]
-st.dataframe(highest_votes)
-
-# Genre Distribution
-st.subheader("Movies by Genre")
-genre_counts = filtered_data['Genre'].value_counts().reset_index()
-genre_counts.columns = ['Genre', 'Count']
-fig_genre = px.bar(genre_counts, x='Genre', y='Count', title="Number of Movies by Genre")
-st.plotly_chart(fig_genre)
-
-# Scatter Plot: IMDb Rating vs Gross
-st.subheader("IMDb Rating vs Gross Earnings")
-fig_scatter = px.scatter(filtered_data, x='Gross', y='IMDB_Rating', size='No_of_Votes', color='Genre', 
-                         title="IMDb Rating vs Gross Earnings", hover_data=['Series_Title'])
-st.plotly_chart(fig_scatter)
-
-# Runtime Distribution
-st.subheader("Runtime Distribution (Pie Chart)")
-runtime_bins = [0, 60, 90, 120, 150, 180, 240]
-runtime_labels = ['< 1 hour', '1-1.5 hours', '1.5-2 hours', '2-2.5 hours', '2.5-3 hours', '> 3 hours']
-filtered_data['Runtime_Category'] = pd.cut(filtered_data['Runtime'], bins=runtime_bins, labels=runtime_labels, right=False)
-runtime_counts = filtered_data['Runtime_Category'].value_counts().reset_index()
-runtime_counts.columns = ['Runtime Category', 'Count']
-fig_runtime_pie = px.pie(runtime_counts, names='Runtime Category', values='Count', title="Runtime Distribution")
-st.plotly_chart(fig_runtime_pie)
-
-# Top Directors with Most Movies
-st.subheader("Top Directors with Most Movies")
-top_directors = filtered_data['Director'].value_counts().head(10).reset_index()
-top_directors.columns = ['Director', 'Movie Count']
-fig_directors = px.bar(top_directors, x='Director', y='Movie Count', title="Top Directors with Most Movies")
-st.plotly_chart(fig_directors)
-
-# Correlation Analysis
-st.subheader("Correlation Analysis")
-correlation = filtered_data[['IMDB_Rating', 'Gross', 'Runtime', 'No_of_Votes']].corr()
-st.write("### Correlation Heatmap")
-fig_corr, ax = plt.subplots()
-sns.heatmap(correlation, annot=True, fmt=".2f", cmap="coolwarm", ax=ax)
-st.pyplot(fig_corr)
-
-# Gross Earnings by Year
-st.subheader("Gross Earnings by Year")
-gross_by_year = filtered_data.groupby('Released_Year')['Gross'].sum().reset_index()
-fig_gross = px.line(gross_by_year, x='Released_Year', y='Gross', title="Gross Earnings Over the Years")
-st.plotly_chart(fig_gross)
-
-# Save file as Python script
-st.sidebar.info("Save this script as 'app.py' and run `streamlit run app.py` in your terminal.")
+# Run the app
+if __name__ == '__main__':
+    app.run_server(debug=True)
