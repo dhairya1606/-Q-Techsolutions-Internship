@@ -3,11 +3,12 @@ from dash import dcc, html
 import pandas as pd
 import plotly.express as px
 
-# Load and preprocess data
+# Load data
 data_path = 'C:\\Users\\dhairya\\OneDrive\\Documents\\8th Sem Internships\\QTechSolutions\\Task 3\\imdb_top_1000.csv'  # Replace with your CSV file path
 data = pd.read_csv(data_path)
+data.head()
 
-# Remove null values using dropna
+# Null value removal
 data.dropna(inplace=True)
 
 # Preprocess data
@@ -15,26 +16,26 @@ data['Released_Year'] = pd.to_numeric(data['Released_Year'], errors='coerce')
 data['Gross'] = data['Gross'].str.replace(',', '').str.extract('(\d+)').astype(float)
 data['Runtime'] = data['Runtime'].str.replace(' min', '').astype(float)
 
-# Bar Chart showing Top 10 Movies by Gross Earnings
+# Bar chart: Top 10 Movies by Gross Earnings
 top_10_gross = data.nlargest(10, 'Gross')
 top_10_bar = px.bar(top_10_gross, x='Series_Title', y='Gross', title='Top 10 Movies by Gross Earnings',
                     labels={'Series_Title': 'Movie Title', 'Gross': 'Gross Earnings'}, color='Gross', text='Gross')
 top_10_bar.update_layout(xaxis={'categoryorder': 'total descending'})
 
-# Scatter Plot (IMDb Rating vs Gross Earnings with Movie Title)
+# Scatter plot: IMDb Rating vs Gross Earnings with Movie Title
 scatter_plot = px.scatter(data, x='Gross', y='IMDB_Rating', size='No_of_Votes', color='Series_Title',
                            hover_data=['Series_Title'], title="IMDb Rating vs Gross Earnings (Movies)")
 
-# Pie Chart showing Gross Earnings Based on Certificates
+# Pie Chart: Gross Earnings Based on Certificates
 certificate_gross = data.groupby('Certificate')['Gross'].sum().reset_index()
 certificate_pie = px.pie(certificate_gross, names='Certificate', values='Gross', title="Gross Earnings Based on Certificates", hole=0.3)
 
-# Bar Chart showing Average IMDb Rating by Certificate
+# Bar Chart: Average IMDb Rating by Certificate
 avg_rating_by_certificate = data.groupby('Certificate')['IMDB_Rating'].mean().reset_index()
 certificate_bar = px.bar(avg_rating_by_certificate, x='Certificate', y='IMDB_Rating', title='Average IMDb Rating by Certificate',
                          labels={'IMDB_Rating': 'Average IMDb Rating'}, color='Certificate', text='IMDB_Rating')
 
-# Bubble Chart showing Gross Earnings by Released Year and Runtime
+# Bubble Chart: Gross Earnings by Released Year and Runtime
 bubble_chart = px.scatter(data, x='Released_Year', y='Runtime', size='Gross', color='Released_Year',
                           title='Gross Earnings by Released Year and Runtime',
                           labels={'Released_Year': 'Released Year', 'Runtime': 'Runtime (min)', 'Gross': 'Gross Earnings'},
