@@ -28,7 +28,7 @@ scatter_plot = px.scatter(data, x='Gross', y='IMDB_Rating', size='No_of_Votes', 
 
 # Pie Chart: Gross Earnings Based on Certificates
 certificate_gross = data.groupby('Certificate')['Gross'].sum().reset_index()
-certificate_pie = px.pie(certificate_gross, names='Certificate', values='Gross', title="Gross Earnings Based on Certificates", hole=0.3)
+certificate_pie = px.pie(certificate_gross, names='Certificate', values='Gross', title="Gross Earnings Based on Certificates")
 
 # Bar Chart: Average IMDb Rating by Certificate
 avg_rating_by_certificate = data.groupby('Certificate')['IMDB_Rating'].mean().reset_index()
